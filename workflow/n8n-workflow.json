@@ -1,0 +1,629 @@
+{
+  "name": "دلع كرشك - AI Restaurant Ordering System",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "e437e416-f44a-4daa-82e4-5b400e8d07c1",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1136,
+        128
+      ],
+      "webhookId": "dalaa-karshak-v3",
+      "credentials": {
+        "telegramApi": {
+          "id": "ibDTveC1uTvRkFYx",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst msg = data?.message ?? {};\nconst chatId = msg?.chat?.id ?? msg?.from?.id ?? '';\nconst firstName = msg?.from?.first_name ?? 'عزيزي العميل';\nconst lastName = msg?.from?.last_name ?? '';\nconst username = msg?.from?.username ?? 'غير محدد';\nconst rawText = msg?.text ?? '';\nconst messageId = msg?.message_id ?? 0;\nconst normalizedText = rawText.toLowerCase().replace(/\\s+/g, ' ').trim();\nconst now = new Date();\nreturn [{\n  json: {\n    chatId,\n    firstName,\n    lastName,\n    fullName: (firstName + ' ' + lastName).trim(),\n    username,\n    rawText,\n    normalizedText,\n    messageId,\n    dateISO: now.toISOString().split('T')[0],\n    timeISO: now.toTimeString().split(' ')[0],\n    isoTimestamp: now.toISOString(),\n    orderID: 'ORD-' + Date.now()\n  }\n}];"
+      },
+      "id": "7fcb48f9-b737-46b4-8ff4-be7b920ad5fc",
+      "name": "Normalize Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -928,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "agent": "openAiFunctionsAgent",
+        "text": "={{ $('Telegram Trigger').item.json.message.text }}",
+        "options": {
+          "systemMessage": "أنت موظف خدمة عملاء محترف لمطعم اسمه \"دلع كرشك\".\n\nمهمتك:\n\n* الرد على العملاء باللهجة المصرية\n* مساعدة العملاء في الطلب\n* عرض المنيو والعروض\n* الرد على أسئلة التوصيل والمواعيد\n* أخذ الأوردر كامل خطوة بخطوة\n\nمعلومات المطعم:\n\nالمنيو:\n\n* برجر دبل: 85 جنيه\n* كرسبي تشيكن: 75 جنيه\n* شاورما: 65 جنيه\n* بيتزا مارجريتا: 90 جنيه\n* باستا وايت صوص: 70 جنيه\n\nالعروض:\n\n* خصم 20% على جميع الوجبات\n* توصيل مجاني فوق 300 جنيه\n\nالتوصيل:\n\n* متاح لجميع المناطق\n* سعر التوصيل يبدأ من 25 جنيه\n\nمواعيد العمل:\n\n* من 10 صباحاً حتى 1 بعد منتصف الليل\n\nقواعد مهمة جداً:\n\n1- اتكلم باللهجة المصرية بشكل طبيعي.\n\n2- كن ودود ومحترف.\n\n3- لو العميل يريد الطلب:\nابدأ بجمع البيانات خطوة بخطوة.\n\nالبيانات المطلوبة:\n\n* الاسم\n* رقم الهاتف\n* العنوان\n* الصنف\n* الكمية\n* طريقة الدفع\n* أي ملاحظات\n\n4- لا تطلب كل البيانات مرة واحدة.\n\n5- اجمع البيانات بالتدريج.\n\n6- بعد جمع كل البيانات اعرض ملخص الأوردر.\n\nمثال:\n\nالاسم: محمد\nالصنف: 2 برجر دبل\nالعنوان: مدينة نصر\nالدفع: كاش\n\nثم اسأل:\n\n\"هل تؤكد الأوردر؟\"\n\n7- عند تأكيد العميل للأوردر:\nارجع JSON فقط بدون أي كلام إضافي.\n\nاستخدم هذا الشكل بالضبط:\n\n```json\n{\n  \"order_confirmed\": true,\n  \"customer_name\": \"\",\n  \"phone\": \"\",\n  \"address\": \"\",\n  \"item_name\": \"\",\n  \"unit_price\": \"\",\n  \"quantity\": \"\",\n  \"discount_percent\": \"\",\n  \"discount_amount\": \"\",\n  \"total_before_discount\": \"\",\n  \"delivery_fee\": \"\",\n  \"total_after_discount\": \"\",\n  \"final_total\": \"\",\n  \"payment_method\": \"\",\n  \"notes\": \"\",\n  \"timestamp\": \"\"\n}\n```\n\nمهم جداً:\n\n* ممنوع استخدام camelCase نهائيًا\n* استخدم snake_case فقط\n* لا تضف أي شرح أو كلام خارج JSON\n* عند عدم تأكيد الأوردر لا ترجع JSON\n\nقواعد إضافية مهمة جداً:\n\n* إذا قال العميل:\n\n  * \"طلب جديد\"\n  * \"عايز أطلب\"\n  * \"أوردر جديد\"\n  * \"ابدأ أوردر\"\n  * \"عايز اعمل أوردر\"\n\nاعتبرها بداية محادثة جديدة بالكامل.\n\n* امسح أي بيانات قديمة أو أوردرات سابقة من الذاكرة فوراً.\n\n* لا تستخدم أي اسم أو عنوان أو طلب قديم في الأوردر الجديد.\n\n* ابدأ جمع البيانات من البداية كأنها أول محادثة تماماً.\n\n* لا تعتمد على أي Context قديم بعد بدء أوردر جديد.\n"
+        }
+      },
+      "id": "485217ab-9572-43e6-802e-acc4ccfc7f52",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1,
+      "position": [
+        -688,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "id": "4ddf56c2-e95e-49b7-987a-86e9bcf6ccca",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        -848,
+        304
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "vnmU8Bfb5Cw42SZl",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionKey": "={{ $('Normalize Message').item.json.chatId }}",
+        "contextWindowLength": 10
+      },
+      "id": "27e31f2f-9c04-40cc-aa5d-c04ea3ece667",
+      "name": "Simple Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1,
+      "position": [
+        -624,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = $input.first().json?.output ?? '';\n\n// تنظيف الـ markdown\nlet cleaned = output\n  .replace(/```json/g, '')\n  .replace(/```/g, '')\n  .trim();\n\n// استخراج JSON\nconst jsonMatch = cleaned.match(/\\{[\\s\\S]*\\}/);\n\nlet orderData = {\n  order_confirmed: false\n};\n\nif (jsonMatch) {\n\n  try {\n\n    orderData = JSON.parse(jsonMatch[0]);\n\n    // معالجة جميع احتمالات أسماء الـ keys\n\n    orderData.order_confirmed =\n      orderData.order_confirmed ??\n      orderData.orderconfirmed ??\n      false;\n\n    orderData.customer_name =\n      orderData.customer_name ??\n      orderData.customername ??\n      '';\n\n    orderData.phone =\n      orderData.phone ??\n      '';\n\n    orderData.address =\n      orderData.address ??\n      '';\n\n    orderData.item_name =\n      orderData.item_name ??\n      orderData.itemname ??\n      orderData.itemName ??\n      '';\n\n    orderData.unit_price =\n      orderData.unit_price ??\n      orderData.unitprice ??\n      orderData.unitPrice ??\n      '';\n\n    orderData.quantity =\n      orderData.quantity ??\n      '';\n\n    orderData.discount_percent =\n      orderData.discount_percent ??\n      orderData.discountpercent ??\n      orderData.discountPercent ??\n      '';\n\n    orderData.discount_amount =\n      orderData.discount_amount ??\n      orderData.discountamount ??\n      orderData.discountAmount ??\n      '';\n\n    orderData.total_before_discount =\n      orderData.total_before_discount ??\n      orderData.totalbeforediscount ??\n      orderData.totalBeforeDiscount ??\n      '';\n\n    orderData.delivery_fee =\n      orderData.delivery_fee ??\n      orderData.deliveryfee ??\n      orderData.deliveryFee ??\n      '';\n\n    orderData.total_after_discount =\n      orderData.total_after_discount ??\n      orderData.totalafterdiscount ??\n      orderData.totalAfterDiscount ??\n      '';\n\n    orderData.final_total =\n      orderData.final_total ??\n      orderData.finaltotal ??\n      orderData.finalTotal ??\n      '';\n\n    orderData.payment_method =\n      orderData.payment_method ??\n      orderData.paymentmethod ??\n      orderData.paymentMethod ??\n      '';\n\n    orderData.notes =\n      orderData.notes ??\n      '';\n\n    orderData.timestamp =\n      orderData.timestamp ??\n      new Date().toISOString();\n\n  } catch (e) {\n\n    orderData = {\n      order_confirmed: false\n    };\n\n  }\n\n}\n\nconst tgData = $('Normalize Message').item.json;\n\n// رسالة عادية\nlet cleanReply = cleaned;\n\n// رسالة تأكيد الأوردر\nif (orderData.order_confirmed) {\n\n  cleanReply =\n`✅ تم تأكيد أوردر حضرتك يا ${orderData.customer_name}\n\n🍔 الصنف:\n${orderData.item_name}\n\n💵 سعر القطعة:\n${orderData.unit_price} جنيه\n\n🔢 الكمية:\n${orderData.quantity}\n\n🏷 الخصم:\n${orderData.discount_percent}%\n\n💸 قيمة الخصم:\n${orderData.discount_amount} جنيه\n\n💰 الإجمالي قبل الخصم:\n${orderData.total_before_discount} جنيه\n\n🚚 التوصيل:\n${orderData.delivery_fee} جنيه\n\n✅ الإجمالي بعد الخصم:\n${orderData.total_after_discount} جنيه\n\n💳 الإجمالي النهائي:\n${orderData.final_total} جنيه\n\n📍 العنوان:\n${orderData.address}\n\n🚚 التوصيل خلال 30-45 دقيقة\n\nشكراً لاختيارك دلع كرشك ❤️`;\n\n}\n\nreturn [{\n  json: {\n\n    ...orderData,\n\n    raw_output: output,\n    cleaned_output: cleaned,\n    reply_text: cleanReply,\n\n    chat_id: tgData.chatId,\n    customer_tg_name: tgData.fullName,\n    username: tgData.username,\n    message_text: tgData.rawText,\n\n    orderID: tgData.orderID,\n\n    dateISO: new Date().toISOString().split('T')[0],\n    timeISO: new Date().toTimeString().split(' ')[0],\n    isoTimestamp: new Date().toISOString()\n\n  }\n}];"
+      },
+      "id": "96c38eba-a110-4afc-a31f-a2849cbb7ffa",
+      "name": "Extract Order Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.order_confirmed }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "f91e205d-5212-4f65-a2e2-920d68faa1d7",
+      "name": "Is Order Confirmed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1RL-uxl_GHScPx59MNwvZhtCLpLPJf4o-IckE0hs15RM",
+          "mode": "list",
+          "cachedResultName": "دلع كرشك - AI Restaurant Orders",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1RL-uxl_GHScPx59MNwvZhtCLpLPJf4o-IckE0hs15RM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "orders",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1RL-uxl_GHScPx59MNwvZhtCLpLPJf4o-IckE0hs15RM/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {
+            "Status": "Confirmed",
+            "DeliveryArea": "Telegram",
+            "Source": "={{$json.address}}",
+            "OrderID": "={{$json.orderID}}",
+            "CustomerName": "={{$json.customer_name}}",
+            "Phone": "={{$json.phone}}",
+            "Address": "={{$json.address}}",
+            "Notes": "={{$json.notes}}",
+            "PaymentMethod": "={{$json.payment_method}}",
+            "Date": "={{$json.dateISO}}",
+            "Time": "={{$json.timeISO}}",
+            "ItemName": "={{$json.item_name}}",
+            "UnitPrice": "={{$json.item_name}}",
+            "Quantity": "={{$json.quantity}}",
+            "DiscountPercent": "={{$json.discount_percent}}",
+            "TotalBeforeDiscount": "={{$json.total_before_discount}}",
+            "TotalAfterDiscount": "={{$json.total_after_discount}}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "OrderID",
+              "displayName": "OrderID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "CustomerName",
+              "displayName": "CustomerName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Phone",
+              "displayName": "Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Address",
+              "displayName": "Address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ItemName",
+              "displayName": "ItemName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "UnitPrice",
+              "displayName": "UnitPrice",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Quantity",
+              "displayName": "Quantity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "DiscountPercent",
+              "displayName": "DiscountPercent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "DiscountAmount",
+              "displayName": "DiscountAmount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "TotalBeforeDiscount",
+              "displayName": "TotalBeforeDiscount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "DeliveryFee",
+              "displayName": "DeliveryFee",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "TotalAfterDiscount",
+              "displayName": "TotalAfterDiscount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "FinalTotal",
+              "displayName": "FinalTotal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "PaymentMethod",
+              "displayName": "PaymentMethod",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Time",
+              "displayName": "Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "TelegramName",
+              "displayName": "TelegramName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Username",
+              "displayName": "Username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "DeliveryArea",
+              "displayName": "DeliveryArea",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Source",
+              "displayName": "Source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "84fe9ee8-a09e-4577-a18a-b398c81f3c75",
+      "name": "Save Order to Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Gh93LYUPhjG0RrKk",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$('Extract Order Data').item.json.chat_id}}",
+        "text": "={{$('Extract Order Data').item.json.reply_text}}",
+        "additionalFields": {}
+      },
+      "id": "7203e13f-650c-466e-8743-4538b5fc9e57",
+      "name": "Send Order Confirmation",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        -16,
+        -160
+      ],
+      "webhookId": "2c472b85-c86a-4633-a01d-30f94c3623ea",
+      "credentials": {
+        "telegramApi": {
+          "id": "ibDTveC1uTvRkFYx",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.reply_text }}",
+        "additionalFields": {}
+      },
+      "id": "da73c955-a595-40e5-af2e-47c24b32e300",
+      "name": "Send Chat Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        0,
+        240
+      ],
+      "webhookId": "ba412f6a-3334-4149-b4a7-885142df5ceb",
+      "credentials": {
+        "telegramApi": {
+          "id": "ibDTveC1uTvRkFYx",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"OrderID\": \"ORD-1778248502028\",\n  \"CustomerName\": \"محمد بهاء\",\n  \"Phone\": \"01095432687\",\n  \"Address\": \"القاهرة جاردنيا\",\n  \"ItemName\": \"برجر دبل\",\n  \"UnitPrice\": \"85\",\n  \"Quantity\": \"2\",\n  \"DiscountPercent\": \"20\",\n  \"DiscountAmount\": \"34\",\n  \"TotalBeforeDiscount\": \"170\",\n  \"DeliveryFee\": \"25\",\n  \"TotalAfterDiscount\": \"136\",\n  \"FinalTotal\": \"161\",\n  \"PaymentMethod\": \"كاش\",\n  \"Notes\": \"\",\n  \"Date\": \"2026-05-08\",\n  \"Time\": \"13:55:08\",\n  \"TelegramName\": \"Mohamed Baha\",\n  \"Username\": \"غير محدد\",\n  \"Status\": \"Confirmed\",\n  \"DeliveryArea\": \"القاهرة جاردنيا\",\n  \"Source\": \"Telegram\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -240,
+        -48
+      ],
+      "id": "85f20606-eee2-4421-bda8-fdf0dd870762",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.powerbi.com/beta/1158e2d5-dc24-41ad-abce-62841076dbde/datasets/fe556540-e763-4fd0-9efc-f19a22aa5f30/rows?experience=power-bi&key=e%2Fi0HOOvH%2FefMByzikL6IryGgC2Luy6InErYrAD51i7MW54zOya5j%2Ff%2FvCvli8DKWjUtYvpThxIP1O0IB4W6Mw%3D%3D",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"OrderID\": \"{{$json.OrderID}}\",\n  \"CustomerName\": \"{{$json.CustomerName}}\",\n  \"Phone\": \"{{$json.Phone}}\",\n  \"Address\": \"{{$json.Address}}\",\n  \"ItemName\": \"{{$json.ItemName}}\",\n  \"UnitPrice\": {{$json.UnitPrice}},\n  \"Quantity\": {{$json.Quantity}},\n  \"DiscountPercent\": {{$json.DiscountPercent}},\n  \"DiscountAmount\": {{$json.DiscountAmount}},\n  \"TotalBeforeDiscount\": {{$json.TotalBeforeDiscount}},\n  \"DeliveryFee\": {{$json.DeliveryFee}},\n  \"TotalAfterDiscount\": {{$json.TotalAfterDiscount}},\n  \"FinalTotal\": {{$json.FinalTotal}},\n  \"PaymentMethod\": \"{{$json.PaymentMethod}}\",\n  \"Date\": \"{{$json.Date}}\",\n  \"Time\": \"{{$json.Time}}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        336,
+        -80
+      ],
+      "id": "8c6d2190-8f0e-4405-a0f5-b11faadd59c5",
+      "name": "HTTP Request"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Message": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Extract Order Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Order Data": {
+      "main": [
+        [
+          {
+            "node": "Is Order Confirmed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Order Confirmed?": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Chat Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Order to Sheets": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Save Order to Sheets",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Order Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Order Confirmation": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "32083856-9622-4db5-ab53-1a283b80233c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7e2a505acd5064c80f9d7fbb2828ea79856388a784246ef514b866d4f784a852"
+  },
+  "id": "3olkQ8oShioZfLlM",
+  "tags": [
+    {
+      "name": "Arabic",
+      "id": "1BJUNoDmu3pZ7kmS",
+      "updatedAt": "2026-05-08T09:29:21.903Z",
+      "createdAt": "2026-05-08T09:29:21.903Z"
+    },
+    {
+      "name": "AI Agent",
+      "id": "NjaUuSOL9x6SOmR6",
+      "updatedAt": "2026-05-08T09:29:21.849Z",
+      "createdAt": "2026-05-08T09:29:21.849Z"
+    },
+    {
+      "name": "Restaurant",
+      "id": "SsO5HHRNSvItLSXg",
+      "updatedAt": "2026-05-08T09:29:21.803Z",
+      "createdAt": "2026-05-08T09:29:21.803Z"
+    },
+    {
+      "name": "Telegram",
+      "id": "m10HscKaX6zFswXP",
+      "updatedAt": "2026-05-08T09:29:21.827Z",
+      "createdAt": "2026-05-08T09:29:21.827Z"
+    }
+  ]
+}
